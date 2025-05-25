@@ -5,7 +5,7 @@ from utils.calculator import solve_integral
 from utils.plotting import plot_integral
 from components.math_input import create_math_input, create_function_examples
 from components.solution_display import display_solution, display_error_message, create_solution_summary
-from assets.examples import definite_integral_examples
+from assets.simple_examples import definite_integral_examples
 from assets.translations import get_text
 
 def show():

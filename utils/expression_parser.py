@@ -84,11 +84,25 @@ def clean_expression(expression: str) -> str:
     expr = re.sub(r'\bLog\b', 'log', expr, flags=re.IGNORECASE)
     expr = re.sub(r'\bSqrt\b', 'sqrt', expr, flags=re.IGNORECASE)
     
-    # Handle implicit multiplication
+    # Handle specific problematic patterns first
+    # Fix exp function patterns
+    expr = re.sub(r'(\d+)\s*\*\s*exp\(', r'\1*exp(', expr)  # Clean up exp multiplication
+    expr = re.sub(r'(\d+)exp\(', r'\1*exp(', expr)  # 2exp( -> 2*exp(
+    expr = re.sub(r'exp\(([^)]+)\)\s*\*\s*(\w)', r'exp(\1)*\2', expr)  # exp(x)*y
+    
+    # Handle trigonometric function patterns
+    expr = re.sub(r'(\w+)\s*\*\s*sin\(', r'\1*sin(', expr)
+    expr = re.sub(r'(\w+)\s*\*\s*cos\(', r'\1*cos(', expr)
+    expr = re.sub(r'(\w+)sin\(', r'\1*sin(', expr)  # xsin( -> x*sin(
+    expr = re.sub(r'(\w+)cos\(', r'\1*cos(', expr)  # xcos( -> x*cos(
+    
+    # Handle implicit multiplication more carefully
     expr = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', expr)  # 2x -> 2*x
     expr = re.sub(r'([a-zA-Z])(\d)', r'\1*\2', expr)  # x2 -> x*2
     expr = re.sub(r'\)(\w)', r')*\1', expr)  # )(var) -> )*(var)
-    expr = re.sub(r'(\w)\(', r'\1*(', expr)  # var( -> var*(
+    
+    # Clean up multiple asterisks
+    expr = re.sub(r'\*+', '*', expr)
     
     return expr
 

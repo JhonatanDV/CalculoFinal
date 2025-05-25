@@ -5,7 +5,7 @@ from utils.riemann_sum import calculate_riemann_sum, get_riemann_sum_steps, comp
 from utils.plotting import plot_riemann_sum
 from components.math_input import create_math_input, create_function_examples
 from components.solution_display import display_riemann_sum_solution, display_error_message, create_solution_summary
-from assets.examples import riemann_sum_examples
+from assets.simple_examples import riemann_sum_examples
 from assets.translations import get_text
 
 def show():

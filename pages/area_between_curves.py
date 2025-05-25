@@ -5,7 +5,7 @@ from utils.area_between_curves import calculate_area_between_curves, find_inters
 from utils.plotting import plot_area_between_curves
 from components.math_input import create_math_input, create_function_examples
 from components.solution_display import display_area_between_curves_solution, display_error_message, create_solution_summary
-from assets.examples import area_between_curves_examples
+from assets.simple_examples import area_between_curves_examples
 from assets.translations import get_text
 
 def show():
