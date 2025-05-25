@@ -120,19 +120,29 @@ def safe_float_conversion(value: Union[str, float, int, sp.Expr]) -> Tuple[bool,
         return False, "None value provided"
     
     try:
-        # If already a number
-        if isinstance(value, (int, float)):
+        # CORRECCIÓN: Manejar tipos NumPy primero
+        if hasattr(value, 'item'):
+            # NumPy array con un elemento
+            return True, float(value.item())
+        elif isinstance(value, (np.floating, np.integer)):
+            # Tipos escalares NumPy
             return True, float(value)
-        
-        # If it's a string
-        if isinstance(value, str):
+        elif isinstance(value, (int, float)):
+            # Tipos Python nativos
+            if np.isnan(value) or np.isinf(value):
+                return False, f"Invalid numeric value: {value}"
+            return True, float(value)
+        elif isinstance(value, str):
             # Handle empty strings
             if not value.strip():
                 return False, "Empty string"
             
             # Try direct conversion first
             try:
-                return True, float(value)
+                result = float(value)
+                if np.isnan(result) or np.isinf(result):
+                    return False, f"Invalid numeric value: {result}"
+                return True, result
             except ValueError:
                 pass
             
@@ -142,22 +152,28 @@ def safe_float_conversion(value: Union[str, float, int, sp.Expr]) -> Tuple[bool,
                 try:
                     # Evaluate numerically
                     result = float(parsed.evalf())
+                    if np.isnan(result) or np.isinf(result):
+                        return False, f"Expression evaluates to invalid value: {result}"
                     return True, result
                 except Exception as e:
                     return False, f"Cannot evaluate expression numerically: {str(e)}"
             else:
                 return False, f"Cannot parse expression: {parsed}"
-        
-        # If it's a SymPy expression
-        if hasattr(value, 'evalf'):
+        elif hasattr(value, 'evalf'):
+            # SymPy expression
             try:
                 result = float(value.evalf())
+                if np.isnan(result) or np.isinf(result):
+                    return False, f"Expression evaluates to invalid value: {result}"
                 return True, result
             except Exception as e:
                 return False, f"Cannot evaluate SymPy expression: {str(e)}"
-        
-        # Try to convert other types
-        return True, float(value)
+        else:
+            # Try to convert other types
+            result = float(value)
+            if np.isnan(result) or np.isinf(result):
+                return False, f"Invalid numeric value: {result}"
+            return True, result
         
     except Exception as e:
         return False, f"Conversion error: {str(e)}"
@@ -175,21 +191,71 @@ def evaluate_expression_at_point(expr: sp.Expr, variable: str, point: float) -> 
         Tuple[bool, Union[float, str]]: (success, result_or_error_message)
     """
     try:
-        var = sp.Symbol(variable, real=True)
-        result = expr.subs(var, point)
-        
-        # Convert to float
-        success, float_result = safe_float_conversion(result)
-        if success:
-            # Check for NaN or infinity
-            if np.isnan(float_result) or np.isinf(float_result):
-                return False, f"Invalid result: {float_result}"
-            return True, float_result
+        # CORRECCIÓN PRINCIPAL: Conversión robusta del punto
+        if hasattr(point, 'item'):
+            # Es un tipo NumPy array con un solo elemento
+            point_value = float(point.item())
+        elif isinstance(point, (np.floating, np.integer)):
+            # Otros tipos NumPy
+            point_value = float(point)
+        elif isinstance(point, str):
+            # Si es string, intentar conversión
+            try:
+                point_value = float(point)
+            except ValueError:
+                return False, f"Cannot convert '{point}' to float"
         else:
-            return False, float_result
+            # Tipo Python nativo
+            point_value = float(point)
+        
+        # Verificar que el punto sea válido
+        if np.isnan(point_value) or np.isinf(point_value):
+            return False, f"Invalid point value: {point_value}"
+        
+        # Crear símbolo y sustituir
+        var = sp.Symbol(variable, real=True)
+        result = expr.subs(var, point_value)
+        
+        # CORRECCIÓN: Mejorar conversión del resultado
+        if hasattr(result, 'evalf'):
+            # Es una expresión SymPy, evaluar numéricamente
+            numeric_result = result.evalf()
             
+            # Verificar si el resultado tiene parte imaginaria
+            if hasattr(numeric_result, 'is_real') and numeric_result.is_real is False:
+                return False, f"Result has imaginary component at {variable} = {point_value}"
+            
+            # Convertir a float
+            try:
+                if hasattr(numeric_result, 're'):
+                    # Número complejo, tomar parte real
+                    float_result = float(numeric_result.re)
+                else:
+                    # Número real
+                    float_result = float(numeric_result)
+            except (ValueError, TypeError):
+                return False, f"Cannot convert result to float at {variable} = {point_value}"
+        else:
+            # Ya es un número, convertir directamente
+            try:
+                float_result = float(result)
+            except (ValueError, TypeError):
+                return False, f"Cannot convert result to float at {variable} = {point_value}"
+        
+        # Verificar que el resultado sea válido
+        if np.isnan(float_result):
+            return False, f"Function undefined at {variable} = {point_value}: result is NaN"
+        elif np.isinf(float_result):
+            return False, f"Function approaches infinity at {variable} = {point_value}"
+        
+        return True, float_result
+        
+    except ZeroDivisionError:
+        return False, f"Division by zero at {variable} = {point}"
+    except ValueError as e:
+        return False, f"Value error at {variable} = {point}: {str(e)}"
     except Exception as e:
-        return False, f"Error evaluating expression: {str(e)}"
+        return False, f"Error evaluating expression at {variable} = {point}: {str(e)}"
 
 def validate_expression_domain(expr: sp.Expr, variable: str, lower_bound: float, upper_bound: float, num_points: int = 10) -> Tuple[bool, str]:
     """
@@ -260,3 +326,29 @@ def get_expression_complexity(expr: sp.Expr) -> str:
             
     except:
         return "moderate"
+def safe_numpy_to_python(value):
+    """
+    Convertir valores NumPy a tipos nativos de Python de manera segura.
+    
+    Args:
+        value: Valor a convertir (puede ser NumPy o Python nativo)
+    
+    Returns:
+        Valor convertido a tipo Python nativo
+    """
+    try:
+        if hasattr(value, 'item'):
+            # NumPy array con un elemento
+            return value.item()
+        elif isinstance(value, (np.floating, np.integer)):
+            # Tipos escalares NumPy
+            return float(value) if isinstance(value, np.floating) else int(value)
+        elif isinstance(value, np.ndarray):
+            # Array NumPy, tomar primer elemento
+            return value.flat[0] if value.size > 0 else 0.0
+        else:
+            # Ya es tipo Python nativo
+            return value
+    except Exception:
+        # En caso de error, retornar 0
+        return 0.0
