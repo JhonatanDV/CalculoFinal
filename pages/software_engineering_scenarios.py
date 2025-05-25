@@ -202,8 +202,8 @@ def display_engineering_scenario(scenario):
         **{get_text('mathematical_function')}:**  
         `{scenario['function']}`
         
-        **{get_text('context')}:** {scenario['context']}  
-        **{get_text('complexity')}:** {scenario['complexity']}
+        **Contexto:** {scenario.get('context', 'Análisis de rendimiento del sistema')}  
+        **Complejidad:** {scenario.get('complexity', 'Media')}
         """)
     
     with col2:
