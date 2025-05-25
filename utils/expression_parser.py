@@ -46,7 +46,7 @@ def safe_sympify(expression: str, variable: str = "x") -> Tuple[bool, Union[sp.E
         }
         
         # Parse the expression
-        parsed_expr = sp.sympify(cleaned_expr, locals=local_dict, transformations='all')
+        parsed_expr = sp.sympify(cleaned_expr, locals=local_dict)
         
         return True, parsed_expr
         
