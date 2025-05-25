@@ -3,7 +3,7 @@ import numpy as np
 from utils.calculator import solve_integral
 from utils.plotting import plot_integral
 from components.solution_display import display_solution
-from utils.random_generator import generate_engineering_scenario, generate_multiple_scenarios, validate_scenario
+from assets.simple_examples import engineering_scenarios
 from assets.translations import get_text
 
 def show():
@@ -31,41 +31,29 @@ def show():
 def show_random_scenario():
     """Show a single random engineering scenario."""
     
+    import random
+    
     # Button to generate scenario
     col1, col2 = st.columns([1, 3])
     
     with col1:
-        if st.button("🎲 " + get_text("generate_random_scenario"), type="primary"):
-            scenario = generate_engineering_scenario()
-            
-            # Validate scenario before storing
-            is_valid, error_msg = validate_scenario(scenario)
-            if is_valid:
-                st.session_state.current_scenario = scenario
-                st.rerun()
-            else:
-                st.error(f"{get_text('scenario_generation_error')}: {error_msg}")
-                # Try to generate a new one
-                for _ in range(3):  # Try up to 3 times
-                    scenario = generate_engineering_scenario()
-                    is_valid, _ = validate_scenario(scenario)
-                    if is_valid:
-                        st.session_state.current_scenario = scenario
-                        st.rerun()
-                        break
+        if st.button("🎲 Generar Escenario Aleatorio", type="primary"):
+            # Select random scenario from simple examples
+            scenario_key = random.choice(list(engineering_scenarios.keys()))
+            scenario = engineering_scenarios[scenario_key].copy()
+            scenario['title'] = scenario_key
+            st.session_state.current_scenario = scenario
+            st.rerun()
     
     with col2:
-        st.info(get_text("random_scenario_info"))
+        st.info("Haz clic para generar un escenario de ingeniería aleatorio con problemas reales.")
     
     # Initialize scenario if none exists
     if "current_scenario" not in st.session_state:
-        scenario = generate_engineering_scenario()
-        is_valid, error_msg = validate_scenario(scenario)
-        if is_valid:
-            st.session_state.current_scenario = scenario
-        else:
-            st.error(f"{get_text('initialization_error')}: {error_msg}")
-            return
+        scenario_key = list(engineering_scenarios.keys())[0]
+        scenario = engineering_scenarios[scenario_key].copy()
+        scenario['title'] = scenario_key
+        st.session_state.current_scenario = scenario
     
     scenario = st.session_state.current_scenario
     
@@ -75,53 +63,29 @@ def show_random_scenario():
 def show_scenario_gallery():
     """Show multiple scenarios for selection."""
     
-    st.subheader(get_text("engineering_scenario_gallery"))
-    st.markdown(get_text("gallery_description"))
+    st.subheader("🏛️ Galería de Escenarios de Ingeniería")
+    st.markdown("Explora múltiples escenarios de ingeniería de software generados automáticamente.")
     
-    # Generate multiple scenarios
-    if st.button("🔄 " + get_text("refresh_gallery"), key="refresh_gallery"):
-        with st.spinner(get_text("generating_scenarios")):
-            scenarios = generate_multiple_scenarios(6)
-            # Validate all scenarios
-            valid_scenarios = []
-            for scenario in scenarios:
-                is_valid, _ = validate_scenario(scenario)
-                if is_valid:
-                    valid_scenarios.append(scenario)
-            
-            if valid_scenarios:
-                st.session_state.scenario_gallery = valid_scenarios
-                st.rerun()
-            else:
-                st.error(get_text("no_valid_scenarios_generated"))
+    # Convert engineering scenarios to list format
+    scenario_list = []
+    for title, scenario_data in engineering_scenarios.items():
+        scenario = scenario_data.copy()
+        scenario['title'] = title
+        scenario_list.append(scenario)
     
-    # Initialize gallery if it doesn't exist
-    if "scenario_gallery" not in st.session_state:
-        with st.spinner(get_text("loading_scenarios")):
-            scenarios = generate_multiple_scenarios(6)
-            valid_scenarios = []
-            for scenario in scenarios:
-                is_valid, _ = validate_scenario(scenario)
-                if is_valid:
-                    valid_scenarios.append(scenario)
-            st.session_state.scenario_gallery = valid_scenarios
-    
-    # Display scenarios in gallery format
-    scenarios = st.session_state.scenario_gallery
-    
-    if scenarios:
+    if scenario_list:
         # Display scenarios in a grid
         cols = st.columns(2)
         
-        for i, scenario in enumerate(scenarios):
+        for i, scenario in enumerate(scenario_list):
             with cols[i % 2]:
                 with st.container():
                     st.markdown(f"### {scenario['title']}")
-                    st.markdown(f"**{get_text('function')}:** `{scenario['function']}`")
-                    st.markdown(f"**{get_text('complexity')}:** {scenario['complexity']}")
-                    st.markdown(f"**{get_text('context')}:** {scenario['context']}")
+                    st.markdown(f"**Función:** `{scenario['function']}`")
+                    st.markdown(f"**Límites:** [{scenario['lower_bound']}, {scenario['upper_bound']}]")
+                    st.markdown(f"**Variable:** {scenario['variable']}")
                     
-                    if st.button(f"{get_text('select_scenario')} {i+1}", 
+                    if st.button(f"Seleccionar Escenario {i+1}", 
                                key=f"select_scenario_{i}"):
                         st.session_state.selected_gallery_scenario = scenario
                         st.rerun()
@@ -130,10 +94,10 @@ def show_scenario_gallery():
         
         # Display selected scenario
         if "selected_gallery_scenario" in st.session_state:
-            st.subheader(get_text("selected_scenario"))
+            st.subheader("📋 Escenario Seleccionado")
             display_engineering_scenario(st.session_state.selected_gallery_scenario)
     else:
-        st.warning(get_text("no_scenarios_available"))
+        st.warning("No se pudieron generar escenarios válidos.")
 
 def show_custom_scenario():
     """Allow users to create custom engineering scenarios."""
