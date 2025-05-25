@@ -42,10 +42,16 @@ def safe_sympify(expression: str, variable: str = "x") -> Tuple[bool, Union[sp.E
             'tan': sp.tan,
             'sqrt': sp.sqrt,
             'abs': sp.Abs,
-            'Abs': sp.Abs
+            'Abs': sp.Abs,
+            'atan': sp.atan,
+            'asin': sp.asin,
+            'acos': sp.acos,
+            'sinh': sp.sinh,
+            'cosh': sp.cosh,
+            'tanh': sp.tanh
         }
         
-        # Parse the expression
+        # Parse the expression WITHOUT transformations parameter
         parsed_expr = sp.sympify(cleaned_expr, locals=local_dict)
         
         return True, parsed_expr
