@@ -191,71 +191,89 @@ def evaluate_expression_at_point(expr: sp.Expr, variable: str, point: float) -> 
         Tuple[bool, Union[float, str]]: (success, result_or_error_message)
     """
     try:
-        # CORRECCIÓN PRINCIPAL: Conversión robusta del punto
-        if hasattr(point, 'item'):
-            # Es un tipo NumPy array con un solo elemento
-            point_value = float(point.item())
-        elif isinstance(point, (np.floating, np.integer)):
-            # Otros tipos NumPy
-            point_value = float(point)
-        elif isinstance(point, str):
-            # Si es string, intentar conversión
-            try:
-                point_value = float(point)
-            except ValueError:
-                return False, f"Cannot convert '{point}' to float"
-        else:
-            # Tipo Python nativo
-            point_value = float(point)
+        # CORRECCIÓN DEFINITIVA: Conversión robusta del punto de entrada
         
-        # Verificar que el punto sea válido
+        # Paso 1: Convertir el punto a float de Python nativo
+        if hasattr(point, 'item'):
+            # NumPy array con un elemento -> extraer valor nativo
+            point_value = point.item()
+        elif hasattr(point, 'dtype'):
+            # Tipo NumPy escalar -> convertir a Python nativo
+            point_value = point.item() if hasattr(point, 'item') else float(point)
+        elif isinstance(point, str):
+            # String -> parsear como número
+            point_value = float(point)
+        else:
+            # Asumir que ya es un tipo Python nativo
+            point_value = point
+        
+        # Paso 2: Asegurar que es exactamente un float de Python
+        point_value = float(point_value)
+        
+        # Paso 3: Verificar validez del punto
+        if not isinstance(point_value, float):
+            return False, f"Point conversion failed: {type(point_value)}"
+        
         if np.isnan(point_value) or np.isinf(point_value):
             return False, f"Invalid point value: {point_value}"
         
-        # Crear símbolo y sustituir
-        var = sp.Symbol(variable, real=True)
-        result = expr.subs(var, point_value)
+        # Paso 4: Crear símbolo con el mismo nombre de variable
+        var_symbol = sp.Symbol(variable, real=True)
         
-        # CORRECCIÓN: Mejorar conversión del resultado
-        if hasattr(result, 'evalf'):
-            # Es una expresión SymPy, evaluar numéricamente
-            numeric_result = result.evalf()
-            
-            # Verificar si el resultado tiene parte imaginaria
-            if hasattr(numeric_result, 'is_real') and numeric_result.is_real is False:
-                return False, f"Result has imaginary component at {variable} = {point_value}"
-            
-            # Convertir a float
-            try:
-                if hasattr(numeric_result, 're'):
-                    # Número complejo, tomar parte real
-                    float_result = float(numeric_result.re)
+        # Paso 5: Realizar sustitución directa con valor Python nativo
+        try:
+            # Usar float puro de Python para evitar problemas con NumPy
+            substituted = expr.subs(var_symbol, point_value)
+        except Exception as subs_error:
+            return False, f"Substitution error at {variable} = {point_value}: {str(subs_error)}"
+        
+        # Paso 6: Evaluar el resultado
+        try:
+            if substituted.is_number:
+                # Es un número directo
+                if hasattr(substituted, 'evalf'):
+                    result_value = float(substituted.evalf())
                 else:
-                    # Número real
-                    float_result = float(numeric_result)
-            except (ValueError, TypeError):
-                return False, f"Cannot convert result to float at {variable} = {point_value}"
-        else:
-            # Ya es un número, convertir directamente
-            try:
-                float_result = float(result)
-            except (ValueError, TypeError):
-                return False, f"Cannot convert result to float at {variable} = {point_value}"
+                    result_value = float(substituted)
+            else:
+                # Necesita evaluación numérica
+                numerical_result = substituted.evalf()
+                
+                if hasattr(numerical_result, 'is_real') and numerical_result.is_real is False:
+                    return False, f"Result has imaginary component at {variable} = {point_value}"
+                
+                # Extraer parte real si es complejo
+                if hasattr(numerical_result, 're'):
+                    result_value = float(numerical_result.re)
+                else:
+                    result_value = float(numerical_result)
+                    
+        except Exception as eval_error:
+            return False, f"Evaluation error at {variable} = {point_value}: {str(eval_error)}"
         
-        # Verificar que el resultado sea válido
-        if np.isnan(float_result):
+        # Paso 7: Verificar validez del resultado
+        if not isinstance(result_value, (int, float)):
+            return False, f"Result is not numeric: {type(result_value)}"
+        
+        if np.isnan(result_value):
             return False, f"Function undefined at {variable} = {point_value}: result is NaN"
-        elif np.isinf(float_result):
+        
+        if np.isinf(result_value):
             return False, f"Function approaches infinity at {variable} = {point_value}"
         
-        return True, float_result
+        return True, float(result_value)
         
     except ZeroDivisionError:
-        return False, f"Division by zero at {variable} = {point}"
-    except ValueError as e:
-        return False, f"Value error at {variable} = {point}: {str(e)}"
+        return False, f"Division by zero at {variable} = {point_value}"
+    except OverflowError:
+        return False, f"Numerical overflow at {variable} = {point_value}"
     except Exception as e:
-        return False, f"Error evaluating expression at {variable} = {point}: {str(e)}"
+        # Capturar el error específico que estás viendo
+        error_msg = str(e)
+        if "could not convert string to float" in error_msg:
+            return False, f"Type conversion error at {variable} = {point}: NumPy type not properly converted"
+        else:
+            return False, f"Unexpected error at {variable} = {point}: {error_msg}"
 
 def validate_expression_domain(expr: sp.Expr, variable: str, lower_bound: float, upper_bound: float, num_points: int = 10) -> Tuple[bool, str]:
     """
@@ -352,3 +370,20 @@ def safe_numpy_to_python(value):
     except Exception:
         # En caso de error, retornar 0
         return 0.0
+def debug_point_conversion(point):
+    """
+    Función de debug para identificar problemas de conversión de tipos.
+    """
+    print(f"Original point: {point}")
+    print(f"Point type: {type(point)}")
+    print(f"Has item method: {hasattr(point, 'item')}")
+    print(f"Has dtype: {hasattr(point, 'dtype')}")
+    
+    if hasattr(point, 'item'):
+        converted = point.item()
+        print(f"After .item(): {converted}, type: {type(converted)}")
+    else:
+        converted = float(point)
+        print(f"After float(): {converted}, type: {type(converted)}")
+    
+    return converted
