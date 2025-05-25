@@ -7,6 +7,7 @@ from components.math_input import create_math_input, create_function_examples
 from components.solution_display import display_solution, display_error_message, create_solution_summary
 from assets.simple_examples import definite_integral_examples
 from assets.study_plans import definite_integrals_study_plan, additional_integral_examples
+from assets.enhanced_study_plans import enhanced_definite_integrals_plan
 from assets.translations import get_text
 
 def show():
@@ -221,9 +222,15 @@ def show_examples_tab():
     with col2:
         if st.button(get_text("load_example"), key="load_example_btn"):
             example = definite_integral_examples[selected_example]
+            # Store in session state with proper keys
+            st.session_state["input_value_integral_function"] = example["function"]
             st.session_state.function_str = example["function"]
             st.session_state.lower_bound = str(example["lower_bound"])
             st.session_state.upper_bound = str(example["upper_bound"])
+            st.session_state["integral_lower_bound"] = str(example["lower_bound"])
+            st.session_state["integral_upper_bound"] = str(example["upper_bound"])
+            st.success("¡Ejemplo cargado! Ve a la pestaña 'Calculadora'.")
+            st.balloons()
             st.rerun()
     
     # Display the selected example details
@@ -236,38 +243,79 @@ def show_examples_tab():
         """)
 
 def show_study_plan_tab():
-    """Display the study plan for definite integrals."""
-    st.subheader("📚 Plan de Estudios: Integrales Definidas")
-    st.markdown("Guía completa para dominar las integrales definidas paso a paso")
+    """Display the enhanced study plan for definite integrals."""
+    st.markdown(f"# {enhanced_definite_integrals_plan['title']}")
+    st.markdown(enhanced_definite_integrals_plan['description'])
     
-    # Display modules
-    for i, module in enumerate(definite_integrals_study_plan["modules"]):
+    # Display modules with enhanced information
+    for i, module in enumerate(enhanced_definite_integrals_plan["modules"]):
         # Color-coded headers based on level
         if module["level"] == "Básico":
             st.markdown(f"## 🟢 {module['title']}")
+            st.success(f"**Duración estimada:** {module['duration']}")
         elif module["level"] == "Intermedio":
             st.markdown(f"## 🟡 {module['title']}")
+            st.warning(f"**Duración estimada:** {module['duration']}")
         else:
             st.markdown(f"## 🔴 {module['title']}")
+            st.error(f"**Duración estimada:** {module['duration']}")
         
         # Topics covered
-        st.markdown("**Temas cubiertos:**")
+        st.markdown("### 📋 **Temas que dominarás:**")
         for topic in module["topics"]:
             st.markdown(f"• {topic}")
         
-        # Examples for this module
-        st.markdown("**Ejemplos prácticos:**")
+        # Resources section
+        st.markdown("### 📚 **Recursos de Estudio Recomendados:**")
+        for resource in module["resources"]:
+            with st.expander(f"🔗 {resource['title']} ({resource['type'].title()})"):
+                st.markdown(f"**Descripción:** {resource['description']}")
+                st.markdown(f"**Enlace:** [{resource['title']}]({resource['url']})")
+                if st.button(f"Abrir {resource['title']}", key=f"resource_{i}_{resource['title']}", help="Se abrirá en nueva pestaña"):
+                    st.markdown(f"🌐 **Dirígete a:** {resource['url']}")
+        
+        # Examples for this module with difficulty indicators
+        st.markdown("### 💡 **Ejemplos Prácticos:**")
         
         for j, example in enumerate(module["examples"]):
-            with st.expander(f"Ejemplo {j+1}: {example['function']}"):
+            with st.expander(f"Ejemplo {j+1}: {example['function']} {example['difficulty']}"):
                 st.markdown(f"**Función:** `{example['function']}`")
                 st.markdown(f"**Límites:** [{example['bounds'][0]}, {example['bounds'][1]}]")
+                st.markdown(f"**Dificultad:** {example['difficulty']}")
                 st.info(example['explanation'])
                 
-                if st.button(f"Practicar este ejemplo", key=f"study_{i}_{j}"):
-                    st.session_state.function_str = example['function']
-                    st.session_state.lower_bound = example['bounds'][0]
-                    st.session_state.upper_bound = example['bounds'][1]
-                    st.success("¡Ejemplo cargado! Ve a la pestaña 'Calculadora' para resolverlo.")
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button(f"🎯 Practicar Ahora", key=f"enhanced_study_{i}_{j}"):
+                        # Store in session state with proper keys
+                        st.session_state["input_value_integral_function"] = example['function']
+                        st.session_state.function_str = example['function']
+                        st.session_state.lower_bound = str(example['bounds'][0])
+                        st.session_state.upper_bound = str(example['bounds'][1])
+                        st.session_state["integral_lower_bound"] = str(example['bounds'][0])
+                        st.session_state["integral_upper_bound"] = str(example['bounds'][1])
+                        st.success("¡Ejemplo cargado! Ve a la pestaña 'Calculadora' para resolverlo.")
+                        st.balloons()
+                with col2:
+                    if st.button(f"📖 Ver Teoría", key=f"theory_{i}_{j}"):
+                        st.info("💡 **Tip:** Revisa los recursos de estudio arriba para entender mejor este tipo de integral.")
         
         st.markdown("---")
+    
+    # Assessment section
+    st.markdown("## 📝 **Plan de Evaluación**")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 🧪 **Evaluaciones**")
+        for quiz in enhanced_definite_integrals_plan["assessment"]["quizzes"]:
+            st.markdown(f"• {quiz}")
+    
+    with col2:
+        st.markdown("### 🚀 **Proyectos**")
+        for project in enhanced_definite_integrals_plan["assessment"]["projects"]:
+            st.markdown(f"• {project}")
+    
+    st.markdown("---")
+    st.success("💪 **¡Sigue este plan y dominarás las integrales definidas completamente!**")

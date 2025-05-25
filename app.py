@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from assets.translations import get_text, LANGUAGES
-from pages import definite_integrals, riemann_sums, area_between_curves, software_engineering_scenarios
+from pages import definite_integrals, riemann_sums, area_between_curves, software_engineering_scenarios, documentation
 
 # Configure page
 st.set_page_config(
@@ -68,7 +68,8 @@ def main():
             "definite_integrals": "📐 " + get_text("definite_integrals"),
             "riemann_sums": "📊 " + get_text("riemann_sums"),
             "area_between_curves": "📏 " + get_text("area_between_curves"),
-            "engineering_scenarios": "⚙️ " + get_text("engineering_scenarios")
+            "engineering_scenarios": "⚙️ " + get_text("engineering_scenarios"),
+            "documentation": "📖 Documentación y Guías"
         }
         
         selected_page = st.radio(
