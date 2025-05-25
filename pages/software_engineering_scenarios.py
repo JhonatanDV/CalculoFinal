@@ -2,25 +2,431 @@ import streamlit as st
 import numpy as np
 from utils.calculator import solve_integral
 from utils.plotting import plot_integral
-from components.solution_display import display_solution
-from assets.simple_examples import engineering_scenarios
+from components.solution_display import display_solution, display_error_message
 from assets.translations import get_text
 
 def show():
     """Display software engineering scenarios related to integrals."""
     
-    st.title("⚙️ " + get_text("engineering_scenarios"))
-    st.markdown(get_text("engineering_scenarios_description"))
+    st.title("🏗️ Cálculo en Ingeniería de Software")
+    st.markdown("**Descubre cómo el cálculo integral impulsa la innovación tecnológica**")
     
     # Navigation tabs
-    tab1, tab2, tab3 = st.tabs([
-        get_text("random_scenario"),
-        get_text("scenario_gallery"), 
-        get_text("custom_scenario")
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🎯 Escenarios Prácticos",
+        "📚 Teoría y Aplicaciones", 
+        "🎥 Recursos Educativos",
+        "💼 Aplicaciones Profesionales"
     ])
     
     with tab1:
-        show_random_scenario()
+        show_practical_scenarios()
+    
+    with tab2:
+        show_theory_and_applications()
+    
+    with tab3:
+        show_educational_resources()
+    
+    with tab4:
+        show_professional_applications()
+
+def show_practical_scenarios():
+    """Show practical software engineering scenarios with calculus applications."""
+    st.markdown("## 🎯 Escenarios Prácticos de Ingeniería de Software")
+    st.markdown("Explora aplicaciones reales del cálculo integral en desarrollo de software")
+    
+    # Define scenarios directly here to avoid import issues
+    scenarios = [
+        {
+            "title": "Optimización de Algoritmos",
+            "context": "Análisis de complejidad temporal de algoritmo de ordenamiento",
+            "function": "2*t**2 + 5*t",
+            "bounds": [0, 10],
+            "unit": "milisegundos",
+            "variable": "t",
+            "explanation": "Esta integral calcula el tiempo total de ejecución cuando la complejidad temporal es cuadrática.",
+            "real_application": "Algoritmos como Bubble Sort, Selection Sort en sistemas reales"
+        },
+        {
+            "title": "Machine Learning - Función de Pérdida",
+            "context": "Calcular la pérdida total durante entrenamiento de red neuronal",
+            "function": "exp(-0.1*t)",
+            "bounds": [0, 50],
+            "unit": "unidades de error",
+            "variable": "t",
+            "explanation": "La integral de la función de pérdida nos da el error total acumulado durante el entrenamiento.",
+            "real_application": "Optimización en TensorFlow, PyTorch, Keras"
+        },
+        {
+            "title": "Análisis de Tráfico Web",
+            "context": "Tráfico total de datos en servidor durante 24 horas",
+            "function": "1000*sin(3.14159*t/12) + 1500",
+            "bounds": [0, 24],
+            "unit": "MB/hora",
+            "variable": "t",
+            "explanation": "Calcular el volumen total de datos transferido con patrones cíclicos diarios.",
+            "real_application": "CDNs como Cloudflare, AWS CloudFront"
+        },
+        {
+            "title": "Optimización de Cache",
+            "context": "Hit rate óptimo de cache para minimizar latencia",
+            "function": "100/(1 + exp(-0.5*(t-10)))",
+            "bounds": [0, 20],
+            "unit": "% hit rate",
+            "variable": "t",
+            "explanation": "Función sigmoide que modela cómo mejora el hit rate conforme aumenta el tamaño del cache.",
+            "real_application": "Sistemas de cache en Redis, Memcached, bases de datos"
+        },
+        {
+            "title": "Análisis de Ciberseguridad",
+            "context": "Entropía total de sistema de contraseñas",
+            "function": "log(t)*t",
+            "bounds": [1, 32],
+            "unit": "bits de entropía",
+            "variable": "t",
+            "explanation": "La entropía acumulada determina la fortaleza criptográfica del sistema.",
+            "real_application": "Generadores de contraseñas, análisis de seguridad"
+        }
+    ]
+    
+    # Scenario selector
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        selected_scenario = st.selectbox(
+            "Selecciona un escenario:",
+            range(len(scenarios)),
+            format_func=lambda x: scenarios[x]["title"],
+            key="scenario_selector"
+        )
+    
+    with col2:
+        if st.button("🎲 Escenario Aleatorio", key="random_scenario"):
+            import random
+            selected_scenario = random.randint(0, len(scenarios) - 1)
+            st.session_state.scenario_selector = selected_scenario
+            st.rerun()
+    
+    # Display selected scenario
+    scenario = scenarios[selected_scenario]
+    
+    st.markdown(f"### 🔍 {scenario['title']}")
+    st.info(f"**Contexto:** {scenario['context']}")
+    st.markdown(f"**Aplicación real:** {scenario['real_application']}")
+    
+    # Display function and bounds
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"**Función:** `{scenario['function']}`")
+    with col2:
+        st.markdown(f"**Límites:** [{scenario['bounds'][0]}, {scenario['bounds'][1]}]")
+    with col3:
+        st.markdown(f"**Unidad:** {scenario['unit']}")
+    
+    # Calculate and display result
+    if st.button("🧮 Calcular Integral", key="calculate_scenario"):
+        try:
+            result, steps = solve_integral(
+                scenario['function'], 
+                str(scenario['bounds'][0]), 
+                str(scenario['bounds'][1]), 
+                scenario['variable']
+            )
+            
+            st.success(f"**Resultado:** {result:.4f} {scenario['unit']}")
+            
+            # Show plot
+            try:
+                plot_integral(
+                    scenario['function'],
+                    str(scenario['bounds'][0]),
+                    str(scenario['bounds'][1]),
+                    scenario['variable']
+                )
+            except Exception as e:
+                st.warning("No se pudo generar la gráfica")
+            
+            # Show explanation
+            st.markdown("### 💡 Explicación")
+            st.markdown(scenario['explanation'])
+            
+            # Show steps
+            with st.expander("👁️ Ver pasos de la solución"):
+                for step in steps:
+                    st.markdown(f"• {step}")
+                    
+        except Exception as e:
+            display_error_message("calculation_error", str(e))
+
+def show_theory_and_applications():
+    """Show theory and applications of calculus in software engineering."""
+    st.markdown("## 📚 Teoría y Aplicaciones del Cálculo en Software")
+    
+    applications = [
+        {
+            "category": "🚀 Optimización de Rendimiento",
+            "description": "Uso del cálculo para optimizar sistemas de software",
+            "applications": [
+                "Análisis de complejidad temporal y espacial",
+                "Optimización de algoritmos de búsqueda y ordenamiento",
+                "Gestión eficiente de memoria y recursos",
+                "Balanceadores de carga adaptativos"
+            ],
+            "math_concepts": [
+                "Derivadas para encontrar puntos óptimos",
+                "Integrales para calcular costos totales",
+                "Límites para análisis asintótico"
+            ]
+        },
+        {
+            "category": "🤖 Machine Learning e IA",
+            "description": "Fundamentos matemáticos del aprendizaje automático",
+            "applications": [
+                "Backpropagation en redes neuronales",
+                "Optimización de funciones de pérdida",
+                "Análisis de convergencia en algoritmos",
+                "Procesamiento de señales y imágenes"
+            ],
+            "math_concepts": [
+                "Gradientes y derivadas parciales",
+                "Integrales para distribuciones de probabilidad",
+                "Ecuaciones diferenciales para dinámicas"
+            ]
+        },
+        {
+            "category": "🎮 Gráficos por Computadora",
+            "description": "Matemáticas avanzadas para rendering y simulación",
+            "applications": [
+                "Ray tracing y path tracing",
+                "Física de partículas y fluidos",
+                "Animaciones procedurales",
+                "Iluminación global y sombras"
+            ],
+            "math_concepts": [
+                "Integrales de Monte Carlo",
+                "Ecuaciones de renderizado",
+                "Transformadas de Fourier"
+            ]
+        },
+        {
+            "category": "🔐 Criptografía y Seguridad",
+            "description": "Matemáticas para protección de información",
+            "applications": [
+                "Generación de números aleatorios",
+                "Análisis de entropía",
+                "Protocolos criptográficos",
+                "Detección de anomalías"
+            ],
+            "math_concepts": [
+                "Teoría de números",
+                "Análisis estadístico",
+                "Funciones hash"
+            ]
+        }
+    ]
+    
+    for app in applications:
+        with st.expander(f"**{app['category']}** - {app['description']}"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Aplicaciones Prácticas:**")
+                for item in app['applications']:
+                    st.markdown(f"• {item}")
+            
+            with col2:
+                st.markdown("**Conceptos Matemáticos:**")
+                for concept in app['math_concepts']:
+                    st.markdown(f"• {concept}")
+
+def show_educational_resources():
+    """Show educational resources for learning calculus in software engineering."""
+    st.markdown("## 🎥 Recursos Educativos")
+    st.markdown("Enlaces a videos, cursos y material educativo sobre aplicaciones del cálculo en software")
+    
+    resources = {
+        "Videos y Cursos": [
+            {
+                "title": "3Blue1Brown - Essence of Calculus",
+                "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDMsr9K-rj53DwVRMYO3t5Yr",
+                "description": "Visualización intuitiva del cálculo y sus aplicaciones en tecnología",
+                "type": "🎥 Serie de videos"
+            },
+            {
+                "title": "MIT 18.01SC - Single Variable Calculus",
+                "url": "https://ocw.mit.edu/courses/18-01sc-single-variable-calculus-fall-2010/",
+                "description": "Curso completo del MIT aplicado a ciencias e ingeniería",
+                "type": "🎓 Curso universitario"
+            },
+            {
+                "title": "Khan Academy - Calculus Applications",
+                "url": "https://www.khanacademy.org/math/ap-calculus-ab",
+                "description": "Aplicaciones prácticas del cálculo con ejercicios interactivos",
+                "type": "📚 Plataforma educativa"
+            },
+            {
+                "title": "Coursera - Machine Learning Mathematics",
+                "url": "https://www.coursera.org/specializations/mathematics-machine-learning",
+                "description": "Matemáticas específicas para machine learning incluyendo cálculo",
+                "type": "💻 Curso online"
+            }
+        ],
+        
+        "Libros y Referencias": [
+            {
+                "title": "Calculus for Computer Graphics",
+                "url": "https://www.amazon.com/Calculus-Computer-Graphics-John-Vince/dp/1447173791",
+                "description": "Aplicaciones específicas del cálculo en gráficos por computadora",
+                "type": "📖 Libro especializado"
+            },
+            {
+                "title": "Mathematics for Computer Science - MIT",
+                "url": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-spring-2015/",
+                "description": "Fundamentos matemáticos completos para CS",
+                "type": "📚 Material académico"
+            },
+            {
+                "title": "Pattern Recognition and Machine Learning",
+                "url": "https://www.microsoft.com/en-us/research/uploads/prod/2006/01/Bishop-Pattern-Recognition-and-Machine-Learning-2006.pdf",
+                "description": "Fundamentos matemáticos del aprendizaje automático",
+                "type": "📄 Libro académico"
+            }
+        ],
+        
+        "Herramientas Prácticas": [
+            {
+                "title": "NumPy y SciPy",
+                "url": "https://scipy-lectures.org/",
+                "description": "Implementación práctica de métodos numéricos en Python",
+                "type": "🛠️ Tutorial práctico"
+            },
+            {
+                "title": "Wolfram Alpha",
+                "url": "https://www.wolframalpha.com/",
+                "description": "Calculadora avanzada para verificar cálculos complejos",
+                "type": "🔧 Herramienta online"
+            },
+            {
+                "title": "GeoGebra",
+                "url": "https://www.geogebra.org/",
+                "description": "Visualización interactiva de funciones y conceptos matemáticos",
+                "type": "📊 Simulador"
+            }
+        ]
+    }
+    
+    for category, items in resources.items():
+        st.markdown(f"### {category}")
+        
+        for resource in items:
+            with st.expander(f"{resource['type']} - {resource['title']}"):
+                st.markdown(f"**Descripción:** {resource['description']}")
+                st.markdown(f"**Enlace:** [{resource['title']}]({resource['url']})")
+                
+                if "3Blue1Brown" in resource['title']:
+                    st.success("💡 **Altamente recomendado** - Excelente para comprensión visual")
+                elif "MIT" in resource['title']:
+                    st.info("🎓 **Nivel universitario** - Contenido riguroso y completo")
+                elif "Khan Academy" in resource['title']:
+                    st.warning("📚 **Para principiantes** - Explicaciones claras paso a paso")
+
+def show_professional_applications():
+    """Show professional applications and career opportunities."""
+    st.markdown("## 💼 Aplicaciones Profesionales")
+    st.markdown("Cómo el cálculo impulsa carreras en tecnología")
+    
+    careers = [
+        {
+            "role": "🤖 Ingeniero de Machine Learning",
+            "description": "Desarrolla sistemas de inteligencia artificial",
+            "calculus_use": [
+                "Optimización de funciones de pérdida",
+                "Análisis de convergencia de algoritmos",
+                "Backpropagation en redes neuronales",
+                "Procesamiento de señales"
+            ],
+            "companies": ["Google", "OpenAI", "Tesla", "Meta"],
+            "salary_range": "$120,000 - $300,000 USD"
+        },
+        {
+            "role": "🎮 Desarrollador de Videojuegos",
+            "description": "Crea experiencias interactivas inmersivas",
+            "calculus_use": [
+                "Física de partículas y fluidos",
+                "Algoritmos de iluminación (ray tracing)",
+                "Animaciones procedurales",
+                "Optimización de rendimiento"
+            ],
+            "companies": ["Epic Games", "Unity", "Blizzard", "Ubisoft"],
+            "salary_range": "$85,000 - $180,000 USD"
+        },
+        {
+            "role": "📊 Científico de Datos",
+            "description": "Extrae insights de grandes volúmenes de datos",
+            "calculus_use": [
+                "Análisis estadístico avanzado",
+                "Modelos probabilísticos",
+                "Optimización de métricas",
+                "Análisis de series temporales"
+            ],
+            "companies": ["Netflix", "Spotify", "Airbnb", "Uber"],
+            "salary_range": "$95,000 - $200,000 USD"
+        },
+        {
+            "role": "☁️ Arquitecto de Sistemas",
+            "description": "Diseña infraestructura tecnológica escalable",
+            "calculus_use": [
+                "Optimización de recursos",
+                "Análisis de capacidad",
+                "Modelado de tráfico",
+                "Predicción de carga"
+            ],
+            "companies": ["Amazon AWS", "Microsoft Azure", "Cloudflare"],
+            "salary_range": "$130,000 - $250,000 USD"
+        }
+    ]
+    
+    for career in careers:
+        with st.expander(f"**{career['role']}** - {career['description']}"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Aplicaciones del Cálculo:**")
+                for use in career['calculus_use']:
+                    st.markdown(f"• {use}")
+                    
+                st.markdown(f"**Rango Salarial:** {career['salary_range']}")
+            
+            with col2:
+                st.markdown("**Empresas que Contratan:**")
+                for company in career['companies']:
+                    st.markdown(f"• {company}")
+    
+    # Success stories section
+    st.markdown("### 🌟 Historias de Éxito")
+    st.info("""
+    **¿Sabías que...?**
+    
+    • **Elon Musk** usa cálculo para optimizar las trayectorias de cohetes SpaceX
+    • **Los algoritmos de Netflix** usan integrales para personalizar recomendaciones
+    • **Google PageRank** se basa en matrices y cálculo vectorial
+    • **Las criptomonedas** usan matemáticas avanzadas para proof-of-work
+    • **Los videojuegos AAA** implementan física realista usando ecuaciones diferenciales
+    """)
+    
+    st.markdown("### 🚀 Próximos Pasos")
+    st.success("""
+    **Para comenzar tu carrera en tech:**
+    
+    1. 📚 **Domina los fundamentos** - Cálculo, álgebra lineal, estadística
+    2. 💻 **Aprende programación** - Python, JavaScript, o tu lenguaje preferido  
+    3. 🔨 **Construye proyectos** - Aplica matemáticas en proyectos reales
+    4. 🌐 **Comparte tu trabajo** - GitHub, portafolio online, blog técnico
+    5. 🤝 **Conecta con la comunidad** - Meetups, conferencias, redes sociales
+    
+    ¡El cálculo que aprendes hoy será la base de la innovación del mañana! 🌟
+    """)
     
     with tab2:
         show_scenario_gallery()

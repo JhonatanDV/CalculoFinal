@@ -30,11 +30,11 @@ ENGINEERING_TEMPLATES = [
     {
         "type": "polynomial",
         "functions": [
-            "t^2 + 3*t + 2",
-            "2*t^2 + t + 5",
-            "t^3 - 2*t^2 + 4",
-            "3*t^2 - t + 1",
-            "t^2 + 5*t"
+            "t**2 + 3*t + 2",
+            "2*t**2 + t + 5",
+            "t**3 - 2*t**2 + 4",
+            "3*t**2 - t + 1",
+            "t**2 + 5*t"
         ],
         "contexts": [
             "Complejidad temporal de algoritmo",
