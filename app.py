@@ -102,6 +102,8 @@ def main():
         area_between_curves.show()
     elif st.session_state.current_page == "engineering_scenarios":
         software_engineering_scenarios.show()
+    elif st.session_state.current_page == "documentation":
+        documentation.show()
 
 if __name__ == "__main__":
     main()
