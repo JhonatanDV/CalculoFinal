@@ -212,7 +212,7 @@ def display_engineering_scenario(scenario):
         {get_text('lower')}: `{scenario['lower_bound']}`  
         {get_text('upper')}: `{scenario['upper_bound']}`
         
-        **{get_text('measurement_unit')}:** {scenario['unit']}
+        **Unidad:** {scenario.get('unit', 'unidades por minuto')}
         """)
     
     # Calculation button

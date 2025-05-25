@@ -6,6 +6,7 @@ from utils.plotting import plot_integral
 from components.math_input import create_math_input, create_function_examples
 from components.solution_display import display_solution, display_error_message, create_solution_summary
 from assets.simple_examples import definite_integral_examples
+from assets.study_plans import definite_integrals_study_plan, additional_integral_examples
 from assets.translations import get_text
 
 def show():
@@ -15,6 +16,24 @@ def show():
     if "input_value_integral_function" not in st.session_state:
         st.session_state["input_value_integral_function"] = st.session_state.function_str
     
+    # Add tabs for calculator and study plan
+    tab1, tab2, tab3 = st.tabs([
+        "🧮 Calculadora", 
+        "📋 Ejemplos",
+        "📚 Plan de Estudios"
+    ])
+    
+    with tab1:
+        show_calculator_tab()
+    
+    with tab2:
+        show_examples_tab()
+    
+    with tab3:
+        show_study_plan_tab()
+
+def show_calculator_tab():
+    """Display the main calculator interface."""
     st.markdown(get_text("definite_integrals_description"))
     
     # Main input section
@@ -180,3 +199,75 @@ def show():
         
         for app in applications:
             st.markdown(f"- {app}")
+
+def show_examples_tab():
+    """Display examples from course materials."""
+    st.subheader("📋 Ejemplos de Integrales Definidas")
+    
+    # Original examples section
+    st.subheader(get_text("example_problems"))
+    
+    # Display examples
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        example_names = list(definite_integral_examples.keys())
+        selected_example = st.selectbox(
+            get_text("select_example"),
+            example_names,
+            key="example_selector"
+        )
+    
+    with col2:
+        if st.button(get_text("load_example"), key="load_example_btn"):
+            example = definite_integral_examples[selected_example]
+            st.session_state.function_str = example["function"]
+            st.session_state.lower_bound = str(example["lower_bound"])
+            st.session_state.upper_bound = str(example["upper_bound"])
+            st.rerun()
+    
+    # Display the selected example details
+    if selected_example:
+        example = definite_integral_examples[selected_example]
+        st.info(f"""
+        **Función:** `{example['function']}`  
+        **Límites:** [{example['lower_bound']}, {example['upper_bound']}]  
+        **Variable:** {example['variable']}
+        """)
+
+def show_study_plan_tab():
+    """Display the study plan for definite integrals."""
+    st.subheader("📚 Plan de Estudios: Integrales Definidas")
+    st.markdown("Guía completa para dominar las integrales definidas paso a paso")
+    
+    # Display modules
+    for i, module in enumerate(definite_integrals_study_plan["modules"]):
+        # Color-coded headers based on level
+        if module["level"] == "Básico":
+            st.markdown(f"## 🟢 {module['title']}")
+        elif module["level"] == "Intermedio":
+            st.markdown(f"## 🟡 {module['title']}")
+        else:
+            st.markdown(f"## 🔴 {module['title']}")
+        
+        # Topics covered
+        st.markdown("**Temas cubiertos:**")
+        for topic in module["topics"]:
+            st.markdown(f"• {topic}")
+        
+        # Examples for this module
+        st.markdown("**Ejemplos prácticos:**")
+        
+        for j, example in enumerate(module["examples"]):
+            with st.expander(f"Ejemplo {j+1}: {example['function']}"):
+                st.markdown(f"**Función:** `{example['function']}`")
+                st.markdown(f"**Límites:** [{example['bounds'][0]}, {example['bounds'][1]}]")
+                st.info(example['explanation'])
+                
+                if st.button(f"Practicar este ejemplo", key=f"study_{i}_{j}"):
+                    st.session_state.function_str = example['function']
+                    st.session_state.lower_bound = example['bounds'][0]
+                    st.session_state.upper_bound = example['bounds'][1]
+                    st.success("¡Ejemplo cargado! Ve a la pestaña 'Calculadora' para resolverlo.")
+        
+        st.markdown("---")
