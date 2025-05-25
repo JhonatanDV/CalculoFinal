@@ -1,4 +1,14 @@
 import streamlit as st
+
+# ESTO DEBE SER LO PRIMERO - ANTES DE CUALQUIER IMPORT QUE USE STREAMLIT
+st.set_page_config(
+    page_title="Calculadora Matemática Avanzada",
+    page_icon="🧮",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# AHORA SÍ PUEDES HACER LOS OTROS IMPORTS
 import sys
 import os
 
@@ -7,14 +17,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from assets.translations import get_text, LANGUAGES
 from pages import definite_integrals, riemann_sums, area_between_curves, software_engineering_scenarios, documentation
-
-# Configure page
-st.set_page_config(
-    page_title="Calculadora Matemática Avanzada",
-    page_icon="🧮",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Initialize session state
 def init_session_state():

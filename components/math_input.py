@@ -49,29 +49,26 @@ def create_math_input(label: str, default: str = "", key: str = None,
     # Display the rendered LaTeX for preview and validation
     if input_value and input_value.strip():
         try:
-            # Validate the expression
-            is_valid, error, expr = validate_function_input(input_value)
+            # CORRECCIÓN: No evaluar la función, solo validar sintaxis
+            # Usar sympy para parsear sin evaluar numéricamente
+            expr = sp.sympify(input_value.replace('^', '**'))
             
-            if is_valid:
-                with st.expander(get_text("preview"), expanded=False):
-                    st.latex(sp.latex(expr))
-                    st.success("✅ " + get_text("valid_expression"))
-            else:
-                with st.expander(get_text("preview"), expanded=False):
-                    st.code(input_value)
-                    st.error(f"❌ {error}")
-                    
-                    # Provide helpful suggestions
-                    st.markdown("**" + get_text("suggestions") + ":**")
-                    st.markdown(f"- {get_text('check_syntax')}")
-                    st.markdown(f"- {get_text('use_star_multiplication')}")
-                    st.markdown(f"- {get_text('check_parentheses')}")
-                    st.markdown(f"- {get_text('use_valid_functions')}")
+            with st.expander(get_text("preview"), expanded=False):
+                # Mostrar la función tal como está, no evaluada
+                st.latex(sp.latex(expr))
+                st.success("✅ " + get_text("valid_expression"))
                 
         except Exception as e:
             with st.expander(get_text("preview"), expanded=False):
                 st.code(input_value)
-                st.warning(f"⚠️ {get_text('expression_warning')}: {str(e)}")
+                st.error(f"❌ Error de sintaxis: {str(e)}")
+                
+                # Provide helpful suggestions
+                st.markdown("**" + get_text("suggestions") + ":**")
+                st.markdown(f"- {get_text('check_syntax')}")
+                st.markdown(f"- {get_text('use_star_multiplication')}")
+                st.markdown(f"- {get_text('check_parentheses')}")
+                st.markdown(f"- {get_text('use_valid_functions')}")
     
     return input_value
 

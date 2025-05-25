@@ -1,5 +1,8 @@
 # Escenarios Específicos de Ingeniería de Software con Aplicaciones del Cálculo
 
+from numpy import pi
+
+
 SOFTWARE_ENGINEERING_SCENARIOS = {
     "title": "🏗️ Cálculo en Ingeniería de Software",
     "description": "Aplicaciones reales del cálculo integral en desarrollo de software y ciencias de la computación",
