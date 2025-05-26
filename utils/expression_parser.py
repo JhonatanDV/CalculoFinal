@@ -60,18 +60,20 @@ def safe_sympify(expression: str, variable: str = "x") -> Tuple[bool, Union[sp.E
         return False, f"Error parsing expression: {str(e)}"
 
 def clean_expression(expression: str) -> str:
-    """
-    Clean and normalize mathematical expression for SymPy parsing.
-    
-    Args:
-        expression (str): Raw expression
-    
-    Returns:
-        str: Cleaned expression
-    """
-    # Remove extra whitespace
+    """Clean and normalize mathematical expression for SymPy parsing."""
     expr = expression.strip()
     
+    # AGREGAR ESTAS CORRECCIONES AL INICIO:
+    expr = re.sub(r'\bsq1t\b', 'sqrt', expr, flags=re.IGNORECASE)  # sq1t -> sqrt
+    expr = re.sub(r'\bsqrt\b', 'sqrt', expr, flags=re.IGNORECASE)  # asegurar sqrt correcto
+    # Remove extra whitespace
+    expr = expression.strip()
+    expr = expr.replace("sq1t", "sqrt")
+    expr = expr.replace("sqlt", "sqrt")
+    # En clean_expression, después de las otras correcciones:
+    expr = re.sub(r'\bsq1t\b', 'sqrt', expr)  # sq1t -> sqrt
+    expr = re.sub(r'\bSq1t\b', 'sqrt', expr)  # Sq1t -> sqrt
+    expr = re.sub(r'\bSQ1T\b', 'sqrt', expr)  # SQ1T -> sqrt
     # Replace common notations
     expr = expr.replace("^", "**")  # Power notation
     expr = expr.replace("ln(", "log(")  # Natural logarithm
@@ -370,6 +372,8 @@ def safe_numpy_to_python(value):
     except Exception:
         # En caso de error, retornar 0
         return 0.0
+    
+
 def debug_point_conversion(point):
     """
     Función de debug para identificar problemas de conversión de tipos.
