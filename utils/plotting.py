@@ -1,10 +1,24 @@
 import streamlit as st
-import plotly.graph_objects as go
 import numpy as np
 import sympy as sp
-from utils.expression_parser import safe_sympify, evaluate_expression_at_point
-from utils.validation import validate_integration_inputs
-
+# ✅ IMPORT OPCIONAL DE PLOTLY
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    st.error("📦 Plotly no disponible - las visualizaciones no funcionarán")
+# ✅ IMPORTS LOCALES
+try:
+    from utils.expression_parser import safe_sympify, evaluate_expression_at_point
+    from utils.validation import validate_integration_inputs
+except ImportError:
+    try:
+        from .expression_parser import safe_sympify, evaluate_expression_at_point
+        from .validation import validate_integration_inputs
+    except ImportError:
+        st.error("Error importando módulos locales")
 def safe_convert_numpy_to_python(value):
     """
     Convertir valores NumPy a tipos nativos de Python de manera segura.

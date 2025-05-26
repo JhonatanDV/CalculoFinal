@@ -1,10 +1,24 @@
 import sympy as sp
 import numpy as np
 from typing import Tuple, Union, Dict, Any
-from .expression_parser import safe_sympify, evaluate_expression_at_point
-from .validation import validate_integration_inputs
-import scipy.integrate as integrate
 import time
+
+# ✅ IMPORT OPCIONAL DE SCIPY
+try:
+    import scipy.integrate as integrate
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+    integrate = None
+
+# ✅ IMPORTS LOCALES
+try:
+    from .expression_parser import safe_sympify, evaluate_expression_at_point
+    from .validation import validate_integration_inputs
+except ImportError:
+    # Fallback para imports relativos
+    from utils.expression_parser import safe_sympify, evaluate_expression_at_point
+    from utils.validation import validate_integration_inputs
 
 def validate_result_accuracy(symbolic_result, numerical_result, tolerance=1e-10):
     """Validar precisión entre métodos simbólico y numérico."""
@@ -24,15 +38,6 @@ def validate_result_accuracy(symbolic_result, numerical_result, tolerance=1e-10)
 def calculate_definite_integral_robust(function_str: str, lower_bound: str, upper_bound: str, variable: str = "x") -> Tuple[bool, Union[float, str], Dict[str, Any]]:
     """
     Calculate definite integral with multiple fallback methods and cross-validation.
-    
-    Args:
-        function_str: Function string
-        lower_bound: Lower bound string
-        upper_bound: Upper bound string
-        variable: Variable name
-    
-    Returns:
-        Tuple[bool, Union[float, str], Dict[str, Any]]: (success, result_or_error, details)
     """
     try:
         # Validate inputs
@@ -50,7 +55,8 @@ def calculate_definite_integral_robust(function_str: str, lower_bound: str, uppe
             "method_used": "",
             "computation_time": 0,
             "approximation_error": None,
-            "validation": {}
+            "validation": {},
+            "scipy_available": SCIPY_AVAILABLE
         }
         
         start_time = time.time()
@@ -94,37 +100,38 @@ def calculate_definite_integral_robust(function_str: str, lower_bound: str, uppe
         except Exception as symbolic_error:
             print(f"Symbolic integration failed: {symbolic_error}")
         
-        # Método 2: Integración numérica con SciPy
-        try:
-            def function_for_scipy(x):
-                """Función adaptada para SciPy"""
-                try:
-                    success, result = evaluate_expression_at_point(expr, variable, float(x))
-                    if success and not (np.isnan(result) or np.isinf(result)):
-                        return result
-                    else:
-                        return 0.0  # Valor por defecto para puntos problemáticos
-                except:
-                    return 0.0
-            
-            # Usar quad de SciPy con manejo de errores robusto
-            numerical_result, error_estimate = integrate.quad(
-                function_for_scipy, 
-                lower_val, 
-                upper_val,
-                limit=100,  # Límite de subdivisiones
-                epsabs=1e-8,  # Tolerancia absoluta
-                epsrel=1e-8   # Tolerancia relativa
-            )
-            
-            if not (np.isnan(numerical_result) or np.isinf(numerical_result)):
-                if final_result is None:
-                    final_result = numerical_result
-                    details["method_used"] = "SciPy Numerical Integration (quad)"
-                details["approximation_error"] = error_estimate
+        # Método 2: Integración numérica con SciPy (solo si está disponible)
+        if SCIPY_AVAILABLE and integrate is not None:
+            try:
+                def function_for_scipy(x):
+                    """Función adaptada para SciPy"""
+                    try:
+                        success, result = evaluate_expression_at_point(expr, variable, float(x))
+                        if success and not (np.isnan(result) or np.isinf(result)):
+                            return result
+                        else:
+                            return 0.0  # Valor por defecto para puntos problemáticos
+                    except:
+                        return 0.0
                 
-        except Exception as scipy_error:
-            print(f"SciPy integration failed: {scipy_error}")
+                # Usar quad de SciPy con manejo de errores robusto
+                numerical_result, error_estimate = integrate.quad(
+                    function_for_scipy, 
+                    lower_val, 
+                    upper_val,
+                    limit=100,  # Límite de subdivisiones
+                    epsabs=1e-8,  # Tolerancia absoluta
+                    epsrel=1e-8   # Tolerancia relativa
+                )
+                
+                if not (np.isnan(numerical_result) or np.isinf(numerical_result)):
+                    if final_result is None:
+                        final_result = numerical_result
+                        details["method_used"] = "SciPy Numerical Integration (quad)"
+                    details["approximation_error"] = error_estimate
+                    
+            except Exception as scipy_error:
+                print(f"SciPy integration failed: {scipy_error}")
         
         # Validación cruzada entre métodos
         if symbolic_result is not None and numerical_result is not None:
@@ -189,17 +196,6 @@ def calculate_riemann_sum_robust(function_str: str, lower_bound: float, upper_bo
                                n: int = 1000, method: str = "simpson", variable: str = "x") -> Tuple[Tuple[bool, Union[float, str]], Dict[str, Any]]:
     """
     Calculate Riemann sum with multiple methods including Simpson's rule.
-    
-    Args:
-        function_str: Function string
-        lower_bound: Lower bound (float)
-        upper_bound: Upper bound (float)
-        n: Number of subdivisions
-        method: Integration method ('left', 'right', 'midpoint', 'simpson')
-        variable: Variable name
-    
-    Returns:
-        Tuple[Tuple[bool, Union[float, str]], Dict[str, Any]]: ((success, result), details)
     """
     try:
         # Parse function
@@ -285,213 +281,97 @@ def monte_carlo_integration(expr: sp.Expr, variable: str, lower_bound: float,
                           upper_bound: float, n_samples: int = 100000) -> float:
     """
     Monte Carlo integration for complex functions.
-    
-    Args:
-        expr: SymPy expression
-        variable: Variable name
-        lower_bound: Lower integration bound
-        upper_bound: Upper integration bound
-        n_samples: Number of random samples
-    
-    Returns:
-        float: Integration result
     """
     try:
-        # Generar puntos aleatorios en el intervalo
+        # Generar puntos aleatorios
         np.random.seed(42)  # Para reproducibilidad
         random_points = np.random.uniform(lower_bound, upper_bound, n_samples)
         
-        # Evaluar la función en los puntos aleatorios
+        # Evaluar función en puntos aleatorios
         function_values = []
-        successful_evaluations = 0
+        for x in random_points:
+            success, y = evaluate_expression_at_point(expr, variable, float(x))
+            if success and not (np.isnan(y) or np.isinf(y)):
+                function_values.append(y)
         
-        for point in random_points:
-            success, f_val = evaluate_expression_at_point(expr, variable, float(point))
-            if success and not (np.isnan(f_val) or np.isinf(f_val)):
-                function_values.append(f_val)
-                successful_evaluations += 1
+        if len(function_values) == 0:
+            raise ValueError("No valid function evaluations")
         
-        if successful_evaluations == 0:
-            raise ValueError("No successful function evaluations")
-        
-        # Calcular el promedio y escalar por el ancho del intervalo
+        # Calcular integral usando Monte Carlo
         average_value = np.mean(function_values)
-        interval_width = upper_bound - lower_bound
+        integral_estimate = average_value * (upper_bound - lower_bound)
         
-        result = average_value * interval_width
-        return result
+        return integral_estimate
         
     except Exception as e:
         raise ValueError(f"Monte Carlo integration failed: {str(e)}")
 
-def analyze_function_properties(function_str: str, variable: str = "x") -> Dict[str, Any]:
+def numerical_derivative(expr: sp.Expr, variable: str, point: float, h: float = 1e-5) -> float:
     """
-    Analyze mathematical properties of a function to help with integration.
-    
-    Args:
-        function_str: Function string
-        variable: Variable name
-    
-    Returns:
-        Dict[str, Any]: Function properties
+    Calculate numerical derivative using central difference method.
     """
     try:
-        success, expr = safe_sympify(function_str, variable)
-        if not success:
-            return {"error": f"Cannot parse function: {expr}"}
+        success_plus, f_plus = evaluate_expression_at_point(expr, variable, point + h)
+        success_minus, f_minus = evaluate_expression_at_point(expr, variable, point - h)
         
-        var_symbol = sp.Symbol(variable, real=True)
-        
-        properties = {
-            "function": function_str,
-            "variable": variable,
-            "is_polynomial": expr.is_polynomial(var_symbol),
-            "has_trigonometric": any(expr.has(func) for func in [sp.sin, sp.cos, sp.tan]),
-            "has_exponential": expr.has(sp.exp),
-            "has_logarithmic": expr.has(sp.log),
-            "complexity_level": "basic"
-        }
-        
-        # Determinar nivel de complejidad
-        complexity_score = 0
-        if properties["has_trigonometric"]:
-            complexity_score += 1
-        if properties["has_exponential"]:
-            complexity_score += 1
-        if properties["has_logarithmic"]:
-            complexity_score += 1
-        if not properties["is_polynomial"]:
-            complexity_score += 1
-        
-        if complexity_score == 0:
-            properties["complexity_level"] = "basic"
-        elif complexity_score <= 2:
-            properties["complexity_level"] = "intermediate"
+        if success_plus and success_minus:
+            return (f_plus - f_minus) / (2 * h)
         else:
-            properties["complexity_level"] = "advanced"
-        
-        # Intentar encontrar discontinuidades obvias
-        try:
-            # Buscar denominadores que puedan ser cero
-            if expr.has(sp.Pow) and any(arg.as_base_exp()[1] < 0 for arg in expr.args if hasattr(arg, 'as_base_exp')):
-                properties["potential_discontinuities"] = True
-            else:
-                properties["potential_discontinuities"] = False
-        except:
-            properties["potential_discontinuities"] = False
-        
-        return properties
-        
+            raise ValueError("Cannot evaluate function for derivative")
+            
     except Exception as e:
-        return {"error": f"Analysis failed: {str(e)}"}
+        raise ValueError(f"Numerical derivative failed: {str(e)}")
 
-def solve_integral(function_str: str, lower_bound: str, upper_bound: str, variable: str = "x"):
+def find_critical_points(expr: sp.Expr, variable: str, domain_start: float, domain_end: float) -> list:
     """
-    Wrapper function for backward compatibility.
-    
-    Args:
-        function_str: Function string
-        lower_bound: Lower bound string
-        upper_bound: Upper bound string
-        variable: Variable name
-    
-    Returns:
-        Integration result
+    Find critical points of a function in a given domain.
     """
-    return calculate_definite_integral_robust(function_str, lower_bound, upper_bound, variable)
-
-def calculate_integral(function_str: str, lower_bound: str, upper_bound: str, variable: str = "x"):
-    """
-    Another wrapper function for backward compatibility.
-    
-    Args:
-        function_str: Function string
-        lower_bound: Lower bound string
-        upper_bound: Upper bound string
-        variable: Variable name
-    
-    Returns:
-        Integration result
-    """
-    return calculate_definite_integral_robust(function_str, lower_bound, upper_bound, variable)
-
-# Funciones adicionales para compatibilidad con el sistema existente
-def get_integration_steps(function_str: str, lower_bound: str, upper_bound: str, variable: str = "x") -> list:
-    """
-    Generate step-by-step solution for definite integration.
-    
-    Args:
-        function_str: Function string
-        lower_bound: Lower bound string
-        upper_bound: Upper bound string
-        variable: Variable name
-    
-    Returns:
-        List[str]: Step-by-step solution
-    """
-    steps = []
-    
     try:
-        # Parse function
-        success, expr = safe_sympify(function_str, variable)
-        if not success:
-            return [f"Error: Could not parse function: {expr}"]
+        var_symbol = sp.Symbol(variable)
         
-        # Validate bounds
+        # Calcular derivada simbólica
+        derivative = sp.diff(expr, var_symbol)
+        
+        # Encontrar raíces de la derivada
+        critical_points = []
+        
+        # Intentar solución simbólica
         try:
-            lower_val = float(lower_bound)
-            upper_val = float(upper_bound)
+            roots = sp.solve(derivative, var_symbol)
+            for root in roots:
+                try:
+                    root_val = float(root.evalf())
+                    if domain_start <= root_val <= domain_end:
+                        critical_points.append(root_val)
+                except:
+                    pass
         except:
-            return ["Error: Invalid bounds provided"]
+            # Si falla la solución simbólica, usar método numérico simple
+            sample_points = np.linspace(domain_start, domain_end, 1000)
+            for i in range(1, len(sample_points) - 1):
+                x_prev = sample_points[i-1]
+                x_curr = sample_points[i]
+                x_next = sample_points[i+1]
+                
+                try:
+                    deriv_prev = numerical_derivative(expr, variable, x_prev)
+                    deriv_next = numerical_derivative(expr, variable, x_next)
+                    
+                    # Buscar cambios de signo
+                    if deriv_prev * deriv_next < 0:
+                        critical_points.append(x_curr)
+                except:
+                    pass
         
-        var_symbol = sp.Symbol(variable, real=True)
-        
-        steps.append(f"**Step 1**: Set up the definite integral")
-        steps.append(f"$$\\int_{{{lower_bound}}}^{{{upper_bound}}} {sp.latex(expr)} \\, d{variable}$$")
-        
-        steps.append(f"**Step 2**: Find the antiderivative")
-        try:
-            antiderivative = sp.integrate(expr, var_symbol)
-            if not antiderivative.has(sp.Integral):
-                steps.append(f"$$F({variable}) = {sp.latex(antiderivative)} + C$$")
-                
-                steps.append(f"**Step 3**: Apply the Fundamental Theorem of Calculus")
-                steps.append(f"$$\\int_{{{lower_bound}}}^{{{upper_bound}}} {sp.latex(expr)} \\, d{variable} = F({upper_bound}) - F({lower_bound})$$")
-                
-                # Evaluate at bounds
-                upper_eval = antiderivative.subs(var_symbol, upper_val)
-                lower_eval = antiderivative.subs(var_symbol, lower_val)
-                
-                steps.append(f"$$= \\left({sp.latex(upper_eval)}\\right) - \\left({sp.latex(lower_eval)}\\right)$$")
-                
-                result = upper_eval - lower_eval
-                steps.append(f"$$= {sp.latex(result)}$$")
-                
-            else:
-                steps.append("The antiderivative cannot be expressed in elementary functions.")
-                steps.append("Using numerical integration method...")
-                
-        except Exception as e:
-            steps.append(f"Could not find symbolic antiderivative: {str(e)}")
-            steps.append("Using numerical integration method...")
-        
-        return steps
+        return sorted(list(set(critical_points)))
         
     except Exception as e:
-        return [f"Error generating steps: {str(e)}"]
+        print(f"Critical points calculation failed: {str(e)}")
+        return []
 
-def compare_integration_methods(function_str: str, lower_bound: str, upper_bound: str, variable: str = "x") -> Dict[str, Any]:
+def analyze_function_behavior(function_str: str, lower_bound: str, upper_bound: str, variable: str = "x") -> dict:
     """
-    Compare different integration methods for educational purposes.
-    
-    Args:
-        function_str: Function string
-        lower_bound: Lower bound string
-        upper_bound: Upper bound string
-        variable: Variable name
-    
-    Returns:
-        Dict[str, Any]: Comparison results
+    Analyze function behavior including monotonicity, concavity, and extrema.
     """
     try:
         # Validate inputs
@@ -499,86 +379,52 @@ def compare_integration_methods(function_str: str, lower_bound: str, upper_bound
             function_str, lower_bound, upper_bound, variable
         )
         if not valid:
-            return {"error": f"Validation error: {error}"}
+            return {"error": error}
         
-        comparison = {
+        var_symbol = sp.Symbol(variable)
+        
+        analysis = {
             "function": function_str,
-            "interval": [lower_val, upper_val],
-            "methods": {}
+            "domain": [lower_val, upper_val],
+            "critical_points": [],
+            "inflection_points": [],
+            "monotonicity": {},
+            "concavity": {},
+            "extrema": {"minima": [], "maxima": []}
         }
         
-        # Método simbólico
         try:
-            var_symbol = sp.Symbol(variable, real=True)
-            indefinite = sp.integrate(expr, var_symbol)
-            if not indefinite.has(sp.Integral):
-                upper_eval = indefinite.subs(var_symbol, upper_val)
-                lower_eval = indefinite.subs(var_symbol, lower_val)
-                symbolic_result = float((upper_eval - lower_eval).evalf())
-                comparison["methods"]["symbolic"] = {
-                    "result": symbolic_result,
-                    "status": "success",
-                    "method": "Exact symbolic integration"
-                }
-            else:
-                comparison["methods"]["symbolic"] = {
-                    "result": None,
-                    "status": "failed",
-                    "method": "No elementary antiderivative"
-                }
-        except Exception as e:
-            comparison["methods"]["symbolic"] = {
-                "result": None,
-                "status": "error",
-                "error": str(e)
-            }
-        
-        # Método numérico (SciPy)
-        try:
-            def func_scipy(x):
-                success, val = evaluate_expression_at_point(expr, variable, x)
-                return val if success else 0.0
+            # Primera derivada
+            first_derivative = sp.diff(expr, var_symbol)
+            # Segunda derivada
+            second_derivative = sp.diff(first_derivative, var_symbol)
             
-            numerical_result, error_est = integrate.quad(func_scipy, lower_val, upper_val)
-            comparison["methods"]["numerical"] = {
-                "result": numerical_result,
-                "error_estimate": error_est,
-                "status": "success",
-                "method": "SciPy quad integration"
-            }
-        except Exception as e:
-            comparison["methods"]["numerical"] = {
-                "result": None,
-                "status": "error",
-                "error": str(e)
-            }
+            # Encontrar puntos críticos
+            analysis["critical_points"] = find_critical_points(expr, variable, lower_val, upper_val)
+            
+            # Análisis de extremos usando la segunda derivada
+            for cp in analysis["critical_points"]:
+                try:
+                    second_deriv_val = float(second_derivative.subs(var_symbol, cp).evalf())
+                    if second_deriv_val > 0:
+                        analysis["extrema"]["minima"].append(cp)
+                    elif second_deriv_val < 0:
+                        analysis["extrema"]["maxima"].append(cp)
+                except:
+                    pass
+            
+        except Exception as deriv_error:
+            analysis["derivative_error"] = str(deriv_error)
         
-        # Suma de Riemann (Simpson)
-        try:
-            riemann_result, riemann_details = calculate_riemann_sum_robust(
-                function_str, lower_val, upper_val, n=1000, method="simpson", variable=variable
-            )
-            if riemann_result[0]:
-                comparison["methods"]["riemann_simpson"] = {
-                    "result": riemann_result[1],
-                    "status": "success",
-                    "method": "Simpson's rule (n=1000)",
-                    "details": riemann_details
-                }
-            else:
-                comparison["methods"]["riemann_simpson"] = {
-                    "result": None,
-                    "status": "failed",
-                    "error": riemann_result[1]
-                }
-        except Exception as e:
-            comparison["methods"]["riemann_simpson"] = {
-                "result": None,
-                "status": "error",
-                "error": str(e)
-            }
-        
-        return comparison
+        return analysis
         
     except Exception as e:
-        return {"error": f"Comparison failed: {str(e)}"}
+        return {"error": f"Function analysis failed: {str(e)}"}
+
+# Función legacy para compatibilidad
+def solve_integral(function_str, lower_bound, upper_bound, variable='x'):
+    """Función de compatibilidad con versiones anteriores."""
+    success, result, details = calculate_definite_integral_robust(
+        function_str, lower_bound, upper_bound, variable
+    )
+    return success, result, details
