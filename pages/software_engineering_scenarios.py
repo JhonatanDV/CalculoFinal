@@ -1,10 +1,10 @@
 import streamlit as st
 import numpy as np
-from utils.calculator import solve_integral
 from utils.plotting import plot_integral
 from components.solution_display import display_solution, display_error_message
 from components.math_input import create_math_input, create_function_examples
 from assets.translations import get_text
+from utils.calculator import calculate_definite_integral_robust
 import pandas as pd
 
 def show():
@@ -51,7 +51,6 @@ def show_interactive_calculator():
         variable_input = st.selectbox("📊 Variable:", ["x", "t", "u", "s"], key="interactive_var")
         
         if st.button("🚀 Calcular Integral", key="interactive_calc", type="primary"):
-            from utils.calculator import calculate_definite_integral_robust
             
             success, result, details = calculate_definite_integral_robust(
                 function_input, lower_input, upper_input, variable_input
@@ -205,7 +204,7 @@ def display_random_scenario(scenario):
 def solve_random_scenario(scenario):
     """Resolver escenario aleatorio con análisis completo."""
     try:
-        from utils.calculator import calculate_definite_integral_robust
+        
         
         st.markdown("### 🚀 Resolviendo Escenario...")
         
@@ -369,28 +368,75 @@ def plot_random_scenario(scenario):
         with col2:
             st.markdown("**🔬 Análisis Avanzado**")
             
-            # ✅ BOTÓN PARA RIEMANN
+            # ✅ BOTÓN PARA RIEMANN CORREGIDO
             if st.button("📐 Ver Aproximación Discreta", key="riemann_random"):
                 try:
                     st.markdown("#### 📐 Aproximación por Sumas de Riemann")
                     from utils.plotting import plot_riemann_sum
                     
+                    # ✅ USAR VALORES SEGUROS
+                    n_samples = 50
+                    method = "midpoint"
+                    
+                    # Convertir bounds a float de manera segura
+                    try:
+                        lower_float = float(scenario['lower'])
+                        upper_float = float(scenario['upper'])
+                    except ValueError:
+                        st.error("Error convirtiendo límites a números")
+                        return
+                    
+                    # ✅ LLAMAR CON PARÁMETROS CORRECTOS
                     plot_riemann_sum(
                         scenario['function'],
-                        float(scenario['lower']),
-                        float(scenario['upper']),
-                        50,  # 50 muestras
-                        "midpoint",
+                        lower_float,
+                        upper_float,
+                        n_samples,
+                        method,
                         scenario['variable']
                     )
+                    
+                    # ✅ CALCULAR Y MOSTRAR SUMA DE RIEMANN
+                    from utils.calculator import calculate_riemann_sum_robust
+                    riemann_result, riemann_details = calculate_riemann_sum_robust(
+                        scenario['function'], 
+                        lower_float, 
+                        upper_float, 
+                        n_samples, 
+                        method, 
+                        scenario['variable']
+                    )
+                    
+                    if riemann_result[0]:  # Si fue exitoso
+                        st.success(f"📐 **Aproximación Riemann:** {riemann_result[1]:.2f} {scenario['metric']}")
+                        
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            st.metric("🔢 Muestras", n_samples)
+                            st.metric("📊 Método", method.title())
+                        with col_b:
+                            interval_minutes = (upper_float - lower_float) * 60 / n_samples
+                            st.metric("⏱️ Intervalo", f"{interval_minutes:.1f} min")
+                    else:
+                        st.error(f"Error en cálculo Riemann: {riemann_result[1]}")
                     
                     st.info("""
                     💡 **Interpretación:**
                     Esta aproximación simula monitoreo cada ~30 minutos,
                     típico en sistemas de observabilidad empresarial.
                     """)
+                    
                 except Exception as riemann_error:
                     st.error(f"Error en Riemann: {riemann_error}")
+                    
+                    # ✅ DEBUG INFO
+                    with st.expander("🔍 Debug Info"):
+                        st.code(f"""
+Función: {scenario['function']}
+Límites: [{scenario['lower']}, {scenario['upper']}]
+Variable: {scenario['variable']}
+Error: {str(riemann_error)}
+                        """)
             
             # ✅ BOTÓN PARA RESOLVER SI NO SE HA HECHO
             if st.button("🚀 Resolver Ahora", key="solve_from_plot"):
@@ -671,6 +717,7 @@ def calculate_integral_definite(current_metric, selected_metric):
         from utils.calculator import calculate_definite_integral_robust
         
         with st.spinner(f"🚀 Calculando integral para {selected_metric}..."):
+            # ✅ CORREGIR ESTA LÍNEA:
             success, result, details = calculate_definite_integral_robust(
                 current_metric['function'], current_metric['lower'], 
                 current_metric['upper'], current_metric['variable']
@@ -699,6 +746,119 @@ def calculate_integral_definite(current_metric, selected_metric):
     
     except Exception as e:
         st.error(f"Error en cálculo: {str(e)}")
+
+def calculate_area_analysis(current_metric, selected_metric, period_info):
+    """Calcular área para período específico."""
+    try:
+        from utils.calculator import calculate_definite_integral_robust
+        
+        start_hour, end_hour, description = period_info
+        
+        with st.spinner(f"🔵 Calculando área del período {start_hour}-{end_hour}h..."):
+            # ✅ CORREGIR ESTA LÍNEA:
+            success, result, details = calculate_definite_integral_robust(
+                current_metric['function'], str(start_hour), str(end_hour), current_metric['variable']
+            )
+        
+        if success:
+            st.success(f"### 🔵 Área del Período: {result:.2f} {current_metric['units']}")
+            
+            # Porcentaje del total diario
+            # ✅ CORREGIR ESTA LÍNEA TAMBIÉN:
+            total_success, total_result, _ = calculate_definite_integral_robust(
+                current_metric['function'], "0", "24", current_metric['variable']
+            )
+            
+            if total_success:
+                percentage = (result / total_result) * 100
+                st.metric("📊 % del Total Diario", f"{percentage:.1f}%")
+            
+            st.info(f"""
+            **🕒 Período:** {start_hour}:00 - {end_hour}:00  
+            **📝 Contexto:** {description}  
+            **📈 Contribución:** Este período representa el impacto acumulado en {description.lower()}
+            """)
+            
+        else:
+            st.error(f"❌ Error: {result}")
+    
+    except Exception as e:
+        st.error(f"Error en análisis de área: {str(e)}")
+
+def calculate_volume_revolution_fixed(current_metric, selected_metric, axis):
+    """Calcular volumen de sólido de revolución."""
+    try:
+        from utils.calculator import calculate_definite_integral_robust
+        
+        # Volumen: V = π ∫ [f(x)]² dx
+        volume_function = f"3.14159 * ({current_metric['function']})**2"
+        
+        with st.spinner(f"🔄 Calculando volumen 3D para {selected_metric}..."):
+            # ✅ CORREGIR ESTA LÍNEA:
+            success, result, details = calculate_definite_integral_robust(
+                volume_function, current_metric['lower'], current_metric['upper'], current_metric['variable']
+            )
+        
+        if success:
+            st.success(f"### 🔄 Volumen 3D: {result:.2f} unidades³")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.info(f"""
+                **🎯 Interpretación del Volumen Tridimensional:**
+                - **Eje de revolución:** {axis}
+                - **Volumen calculado:** {result:.2f} unidades cúbicas
+                - **Método:** {details.get('method_used', 'Numérico')}
+                
+                **🏗️ Aplicación en infraestructura:**
+                - **Escalamiento cúbico:** Crecimiento volumétrico del sistema
+                - **Dimensionamiento:** Capacidad total de procesamiento 3D
+                - **Arquitectura distribuida:** Planificación de clusters
+                
+                💡 **Significado empresarial:** El volumen modela la capacidad 
+                tridimensional necesaria para manejar {selected_metric.lower()}.
+                """)
+                
+                # Estimaciones prácticas
+                if "Usuarios" in selected_metric:
+                    servers = result / 1000000
+                    st.metric("🖥️ Servidores estimados", f"{servers:.0f}")
+                elif "Cache" in selected_metric:
+                    efficiency = min(result / 100000 * 10, 50)
+                    st.metric("⚡ Mejora eficiencia", f"+{efficiency:.1f}%")
+                
+                # ✅ AGREGAR BOTÓN PARA VER 3D
+                if st.button("🎯 Ver Visualización 3D", key=f"view_3d_{selected_metric}"):
+                    st.markdown("#### 🔄 Sólido de Revolución en 3D")
+                    from utils.plotting import plot_volume_3d
+                    plot_volume_3d(current_metric['function'], current_metric['lower'], 
+                                 current_metric['upper'], current_metric['variable'])
+            
+            with col2:
+                st.markdown(f"#### 🔄 Función Original - {selected_metric}")
+                plot_integral(current_metric['function'], current_metric['lower'], 
+                            current_metric['upper'], current_metric['variable'])
+                
+                st.info(f"""
+                **📊 Fórmula aplicada:**
+                V = π ∫ [f(t)]² dt
+                
+                La función mostrada se eleva al cuadrado y se multiplica por π 
+                para obtener el volumen del sólido de revolución.
+                """)
+                
+                # ✅ AGREGAR BOTÓN PARA COMPARACIÓN 2D vs 3D
+                if st.button("🔄 Comparar 2D vs 3D", key=f"compare_3d_{selected_metric}"):
+                    st.markdown("#### 📊 Comparación 2D vs 3D")
+                    from utils.plotting import plot_3d_comparison
+                    plot_3d_comparison(current_metric['function'], current_metric['lower'], 
+                                     current_metric['upper'], current_metric['variable'])
+                
+        else:
+            st.error(f"❌ Error calculando volumen: {result}")
+    except Exception as e:
+        st.error(f"Error en cálculo de volumen: {str(e)}")
 
 def calculate_riemann_sum(current_metric, selected_metric, method, n_samples):
     """Calcular suma de Riemann."""
@@ -769,7 +929,7 @@ def calculate_area_analysis(current_metric, selected_metric, period_info):
             st.success(f"### 🔵 Área del Período: {result:.2f} {current_metric['units']}")
             
             # Porcentaje del total diario
-            total_success, total_result, _ = calculate_definite_integral_robust(
+            total_success, total_result,  = calculate_definite_integral_robust(
                 current_metric['function'], "0", "24", current_metric['variable']
             )
             
